@@ -2,7 +2,6 @@ import "dotenv/config";
 import needle from "needle";
 import OAuth from "oauth-1.0a";
 import crypto from "crypto";
-import axios from "axios";
 import fs from "fs";
 import path from "path";
 
@@ -33,19 +32,9 @@ const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
 
 async function downloadImage(url, dest) {
-  const writer = fs.createWriteStream(dest);
-  const response = await axios({
-    url,
-    method: "GET",
-    responseType: "stream",
-  });
-
-  response.data.pipe(writer);
-
-  return new Promise((resolve, reject) => {
-    writer.on("finish", resolve);
-    writer.on("error", reject);
-  });
+  const response = await fetch(url);
+  const buffer = await response.arrayBuffer();
+  fs.writeFileSync(dest, Buffer.from(buffer));
 }
 
 async function uploadMediaInit(mediaSize, mediaType, mediaCategory) {
