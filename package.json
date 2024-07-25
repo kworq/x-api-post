@@ -1,0 +1,19 @@
+{
+  "type": "module",
+  "name": "x-api-post",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Guy Peires",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "needle": "^3.3.1",
+    "oauth-1.0a": "^2.2.6",
+    "twitter-api-v2": "^1.17.2"
+  }
+}
