@@ -1,7 +1,5 @@
 import "dotenv/config";
-import needle from "needle";
-import OAuth from "oauth-1.0a";
-import crypto from "crypto";
+import OAuth from "oauth";
 import fs from "fs";
 import path from "path";
 
@@ -13,23 +11,27 @@ const {
   TEST_IMAGE_URL,
 } = process.env;
 
-const token = {
-  key: X_API_ACCESS_TOKEN,
-  secret: X_API_ACCESS_TOKEN_SECRET,
-};
-
-// Initialize OAuth 1.0a
-const oauth = OAuth({
-  consumer: { key: X_API_KEY, secret: X_API_SECRET },
-  signature_method: "HMAC-SHA1",
-  hash_function(base_string, key) {
-    return crypto.createHmac("sha1", key).update(base_string).digest("base64");
-  },
-});
+const getAuthHeader = (endpoint, method, params) =>
+  oauth.authHeader(
+    endpoint + (params ? "?" + new URLSearchParams(params).toString() : ""),
+    X_API_ACCESS_TOKEN,
+    X_API_ACCESS_TOKEN_SECRET,
+    method
+  );
 
 // URLs
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
+
+const oauth = new OAuth.OAuth(
+  "https://api.twitter.com/oauth/request_token",
+  "https://api.twitter.com/oauth/access_token",
+  X_API_KEY,
+  X_API_SECRET,
+  "1.0A",
+  null,
+  "HMAC-SHA1"
+);
 
 async function downloadImage(url, dest) {
   const response = await fetch(url);
@@ -45,31 +47,32 @@ async function uploadMediaInit(mediaSize, mediaType, mediaCategory) {
     media_category: mediaCategory,
   };
 
-  const authHeader = oauth.toHeader(
-    oauth.authorize(
-      {
-        url: mediaEndpointUrl,
-        method: "POST",
-        data: params,
+  const Authorization = getAuthHeader(mediaEndpointUrl, "POST", params);
+
+  try {
+    const response = await fetch(mediaEndpointUrl, {
+      method: "POST",
+      headers: {
+        Authorization,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      token
-    )
-  );
+      body: new URLSearchParams(params),
+    });
 
-  const response = await needle("post", mediaEndpointUrl, params, {
-    headers: {
-      ...authHeader,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
-
-  if (response.body && response.body.media_id_string) {
-    console.log(response.body);
-    return response.body.media_id_string;
-  } else {
-    throw new Error(
-      "Error initializing media upload: " + JSON.stringify(response.body)
-    );
+    if (!response.ok) {
+      throw new Error(
+        "Error initializing media upload: " + response.statusText
+      );
+    }
+    const body = await response.json();
+    if (body && body.media_id_string) {
+      console.log(body);
+      return body.media_id_string;
+    } else {
+      throw new Error("Error no media_id_string: " + JSON.stringify(body));
+    }
+  } catch (error) {
+    console.error("Error:", error);
   }
 }
 
@@ -115,26 +118,20 @@ async function uploadMediaAppend(mediaId, mediaData, segmentIndex) {
     Buffer.from(footer),
   ]);
 
-  const authHeader = oauth.toHeader(
-    oauth.authorize(
-      {
-        url: mediaEndpointUrl,
-        method: "POST",
-      },
-      token
-    )
-  );
+  const Authorization = getAuthHeader(mediaEndpointUrl, "POST");
 
-  const response = await needle("post", mediaEndpointUrl, multipartBody, {
+  const response = await fetch(mediaEndpointUrl, {
+    method: "POST",
     headers: {
-      ...authHeader,
+      Authorization,
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
       "Content-Length": multipartBody.length,
     },
+    body: multipartBody,
   });
 
-  if (response.statusCode !== 204) {
-    throw new Error("Error appending media: " + JSON.stringify(response.body));
+  if (!response.ok) {
+    throw new Error("Error appending media: " + response.statusText);
   }
 }
 
@@ -144,30 +141,23 @@ async function uploadMediaFinalize(mediaId) {
     media_id: mediaId,
   };
 
-  const authHeader = oauth.toHeader(
-    oauth.authorize(
-      {
-        url: mediaEndpointUrl,
-        method: "POST",
-        data: params,
+  const Authorization = getAuthHeader(mediaEndpointUrl, "POST", params);
+
+  try {
+    const response = await fetch(mediaEndpointUrl, {
+      method: "POST",
+      headers: {
+        Authorization,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      token
-    )
-  );
+      body: new URLSearchParams(params),
+    });
 
-  const response = await needle("post", mediaEndpointUrl, params, {
-    headers: {
-      ...authHeader,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
-
-  if (response.body && response.body.media_id_string) {
-    return response.body.media_id_string;
-  } else {
-    throw new Error(
-      "Error finalizing media upload: " + JSON.stringify(response.body)
-    );
+    if (!response.ok) {
+      throw new Error("Error finalizing media upload: " + response.statusText);
+    }
+  } catch (error) {
+    console.error("Error:", error);
   }
 }
 
@@ -177,49 +167,49 @@ async function uploadMediaStatus(mediaId) {
     media_id: mediaId,
   };
 
-  const authHeader = oauth.toHeader(
-    oauth.authorize(
-      {
-        url: mediaEndpointUrl,
-        method: "GET",
-        data: params,
-      },
-      token
-    )
-  );
+  const Authorization = getAuthHeader(mediaEndpointUrl, "GET", params);
+
   console.log("Checking media status...");
   let state = "pending";
-
-  while (state !== "succeeded") {
-    const response = await needle("get", mediaEndpointUrl, params, {
-      headers: {
-        ...authHeader,
-      },
-    });
-
-    if (response.body && response.body.processing_info) {
-      const processingInfo = response.body.processing_info;
-      state = processingInfo.state;
-
-      if (state === "succeeded") {
-        return mediaId;
-      } else if (state === "failed") {
-        throw new Error(
-          "Media upload failed: " + JSON.stringify(response.body)
-        );
-      } else {
-        const checkAfterSecs = processingInfo.check_after_secs || 5;
-        console.log(
-          `Media processing ${state}. Checking again in ${checkAfterSecs} seconds.`
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, checkAfterSecs * 1000)
-        );
-      }
-    } else {
-      throw new Error(
-        "Error checking media status: " + JSON.stringify(response.body)
+  let errorCaught = false;
+  while (state !== "succeeded" && !errorCaught) {
+    try {
+      const response = await fetch(
+        mediaEndpointUrl + "?command=STATUS&media_id=" + mediaId,
+        {
+          method: "GET",
+          headers: {
+            Authorization,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
       );
+      const body = await response.json();
+      if (body && body.processing_info) {
+        const processingInfo = body.processing_info;
+        state = processingInfo.state;
+
+        if (state === "succeeded") {
+          return mediaId;
+        } else if (state === "failed") {
+          throw new Error(
+            "Media upload failed: " + JSON.stringify(response.body)
+          );
+        } else {
+          const checkAfterSecs = processingInfo.check_after_secs || 5;
+          console.log(
+            `Media processing ${state}. Checking again in ${checkAfterSecs} seconds.`
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, checkAfterSecs * 1000)
+          );
+        }
+      } else {
+        throw new Error("Error checking media status: " + response.statusText);
+      }
+    } catch (error) {
+      errorCaught = true;
+      console.error("Error:", error);
     }
   }
 }
@@ -279,28 +269,22 @@ async function postTweet(text, mediaIds) {
     media: { media_ids: mediaIds },
   };
 
-  const authHeader = oauth.toHeader(
-    oauth.authorize(
-      {
-        url: tweetEndpointUrl,
-        method: "POST",
-      },
-      token
-    )
-  );
+  const Authorization = getAuthHeader(tweetEndpointUrl, "POST");
 
   try {
-    const response = await needle("post", tweetEndpointUrl, data, {
+    const response = await fetch(tweetEndpointUrl, {
+      method: "POST",
       headers: {
-        ...authHeader,
-        "content-type": "application/json",
+        Authorization,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(data),
     });
-
-    if (response.body) {
-      console.log("Tweet posted:", response.body);
+    const body = await response.json();
+    if (body) {
+      console.log("Tweet posted:", body);
     } else {
-      console.error("Error posting tweet:", response.body);
+      console.error("Error posting tweet:", response.statusText);
     }
   } catch (error) {
     console.error("Request failed:", error);

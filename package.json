@@ -11,8 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "dotenv": "^16.4.5",
-    "needle": "^3.3.1",
-    "oauth-1.0a": "^2.2.6",
+    "oauth": "^0.10.0",
     "twitter-api-v2": "^1.17.2"
   }
 }
