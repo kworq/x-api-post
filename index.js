@@ -28,14 +28,14 @@ export async function postTweetWithMedia(config, text, mediaUrls) {
       method
     );
   const _mediaUrls =
-    typeof mediaUrls !== "string" && mediaUrls?.length
-      ? mediaUrls
-      : mediaUrls
-      ? [mediaUrls]
-      : undefined;
+    typeof mediaUrls !== "string"
+      ? mediaUrls?.length
+        ? mediaUrls
+        : undefined
+      : [mediaUrls];
   const mediaIds = _mediaUrls ? [] : undefined;
   if (mediaIds) {
-    for await (const mediaUrl of mediaUrls) {
+    for await (const mediaUrl of _mediaUrls) {
       const mediaId = await uploadMedia(mediaUrl);
       mediaId && mediaIds.push(mediaId);
     }
