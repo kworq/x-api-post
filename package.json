@@ -10,8 +10,6 @@
   "author": "Guy Peires",
   "license": "ISC",
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "oauth": "^0.10.0",
-    "twitter-api-v2": "^1.17.2"
+    "oauth": "^0.10.0"
   }
 }

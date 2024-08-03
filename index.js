@@ -1,37 +1,47 @@
-import "dotenv/config";
 import OAuth from "oauth";
 import fs from "fs";
 import path from "path";
 
-const {
-  X_API_KEY,
-  X_API_SECRET,
-  X_API_ACCESS_TOKEN,
-  X_API_ACCESS_TOKEN_SECRET,
-  TEST_IMAGE_URL,
-} = process.env;
-
-const getAuthHeader = (endpoint, method, params) =>
-  oauth.authHeader(
-    endpoint + (params ? "?" + new URLSearchParams(params).toString() : ""),
-    X_API_ACCESS_TOKEN,
-    X_API_ACCESS_TOKEN_SECRET,
-    method
-  );
-
-// URLs
+let getAuthHeader;
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
 
-const oauth = new OAuth.OAuth(
-  "https://api.twitter.com/oauth/request_token",
-  "https://api.twitter.com/oauth/access_token",
-  X_API_KEY,
-  X_API_SECRET,
-  "1.0A",
-  null,
-  "HMAC-SHA1"
-);
+export async function postTweetWithMedia(config, text, mediaUrls) {
+  if (!config) {
+    throw new Error("Configuration options not set.");
+  }
+  const oauth = new OAuth.OAuth(
+    "https://api.twitter.com/oauth/request_token",
+    "https://api.twitter.com/oauth/access_token",
+    config.X_API_KEY,
+    config.X_API_SECRET,
+    "1.0A",
+    null,
+    "HMAC-SHA1"
+  );
+
+  getAuthHeader = (endpoint, method, params) =>
+    oauth.authHeader(
+      endpoint + (params ? "?" + new URLSearchParams(params).toString() : ""),
+      config.X_API_ACCESS_TOKEN,
+      config.X_API_ACCESS_TOKEN_SECRET,
+      method
+    );
+  const _mediaUrls =
+    typeof mediaUrls !== "string" && mediaUrls?.length
+      ? mediaUrls
+      : mediaUrls
+      ? [mediaUrls]
+      : undefined;
+  const mediaIds = _mediaUrls ? [] : undefined;
+  if (mediaIds) {
+    for await (const mediaUrl of mediaUrls) {
+      const mediaId = await uploadMedia(mediaUrl);
+      mediaId && mediaIds.push(mediaId);
+    }
+  }
+  await postTweet(text, mediaIds);
+}
 
 async function downloadImage(url, dest) {
   const response = await fetch(url);
@@ -118,7 +128,7 @@ async function uploadMediaAppend(mediaId, mediaData, segmentIndex) {
     Buffer.from(footer),
   ]);
 
-  const Authorization = getAuthHeader(mediaEndpointUrl, "POST");
+  const Authorization = getAuthHeader?.(mediaEndpointUrl, "POST");
 
   const response = await fetch(mediaEndpointUrl, {
     method: "POST",
@@ -141,7 +151,7 @@ async function uploadMediaFinalize(mediaId) {
     media_id: mediaId,
   };
 
-  const Authorization = getAuthHeader(mediaEndpointUrl, "POST", params);
+  const Authorization = getAuthHeader?.(mediaEndpointUrl, "POST", params);
 
   try {
     const response = await fetch(mediaEndpointUrl, {
@@ -167,7 +177,7 @@ async function uploadMediaStatus(mediaId) {
     media_id: mediaId,
   };
 
-  const Authorization = getAuthHeader(mediaEndpointUrl, "GET", params);
+  const Authorization = getAuthHeader?.(mediaEndpointUrl, "GET", params);
 
   console.log("Checking media status...");
   let state = "pending";
@@ -266,10 +276,10 @@ async function uploadMedia(imageUrl) {
 async function postTweet(text, mediaIds) {
   const data = {
     text: text,
-    media: { media_ids: mediaIds },
+    ...(mediaIds?.length ? { media: { media_ids: mediaIds } } : {}),
   };
 
-  const Authorization = getAuthHeader(tweetEndpointUrl, "POST");
+  const Authorization = getAuthHeader?.(tweetEndpointUrl, "POST");
 
   try {
     const response = await fetch(tweetEndpointUrl, {
@@ -290,12 +300,3 @@ async function postTweet(text, mediaIds) {
     console.error("Request failed:", error);
   }
 }
-
-(async () => {
-  try {
-    const mediaId = await uploadMedia(TEST_IMAGE_URL);
-    await postTweet("Hello, Crypto world! Power to you", [mediaId]);
-  } catch (error) {
-    console.error("Error:", error);
-  }
-})();
