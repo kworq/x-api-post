@@ -3,19 +3,27 @@
   "name": "x-api-post",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc"
   },
   "author": "Guy Peires",
   "license": "ISC",
   "dependencies": {
     "@types/oauth": "^0.9.5",
+    "dotenv": "^16.4.5",
     "oauth": "^0.10.0"
   },
   "devDependencies": {
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
+  },
+  "publishConfig": {
+    "@kworq:registry": "https://npm.pkg.github.com"
   }
 }

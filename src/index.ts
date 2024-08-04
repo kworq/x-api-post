@@ -2,12 +2,7 @@ import OAuth from "oauth";
 import fs from "fs";
 import path from "path";
 
-import {
-  MediaUploadInitResponse,
-  MediaUploadAppendResponse,
-  MediaUploadFinalizeResponse,
-  MediaUploadStatusResponse,
-} from "./index.d";
+import { MediaUploadInitResponse, MediaUploadStatusResponse } from "../x-api";
 
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
