@@ -78,6 +78,11 @@ client.postTweetWithMedia(text, mediaUrls)
   .catch((error) => console.error("Error posting tweet:", error));
 ```
 
+## Run
+```bash
+node --import ./esm-loader.mjs index.ts
+```
+
 ## Notes
 
 - Ensure you have valid Twitter API credentials.
