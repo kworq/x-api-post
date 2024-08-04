@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { postTweetWithMedia } from "./index"; // Replace with your actual function import
+import XApiClient from "./index"; // Replace with your actual class import
 import fs from "fs";
 import path from "path";
 
 vi.mock("fs");
 vi.mock("path");
 
-describe("postTweetWithMedia", () => {
+describe("XApiClient", () => {
   const config = {
     X_API_KEY: "test_api_key",
     X_API_SECRET: "test_api_secret",
@@ -14,8 +14,11 @@ describe("postTweetWithMedia", () => {
     X_API_ACCESS_TOKEN_SECRET: "test_access_token_secret",
   };
 
+  let client;
+
   beforeEach(() => {
     vi.restoreAllMocks();
+    client = new XApiClient(config);
   });
 
   afterEach(() => {
@@ -36,14 +39,12 @@ describe("postTweetWithMedia", () => {
       }
       if (url.includes("upload.json") && options.method === "POST") {
         if (options.headers["Content-Type"].includes("multipart/form-data")) {
-          // Handle the APPEND command
           const parts = options.body.toString().split("\r\n");
           const commandPart = parts.find((part, i) => {
             return i > 0 && parts[i - 2]?.includes('name="command"');
           });
-          const command = commandPart;
+          const command = commandPart.match(/APPEND/)?.[0];
           if (command === "APPEND") {
-            console.log("APPEND");
             return Promise.resolve({
               ok: true,
               json: () => Promise.resolve({ media_id_string: mediaId }),
@@ -52,18 +53,15 @@ describe("postTweetWithMedia", () => {
         } else {
           const params = new URLSearchParams(options.body.toString());
           if (params.get("command") === "INIT") {
-            console.log("INIT");
             return Promise.resolve({
               ok: true,
               json: () => Promise.resolve({ media_id_string: mediaId }),
             });
           }
           if (params.get("command") === "FINALIZE") {
-            console.log("FINALIZE");
             return Promise.resolve({ ok: true });
           }
           if (url.includes("STATUS")) {
-            console.log("STATUS");
             return Promise.resolve({
               ok: true,
               json: () =>
@@ -91,7 +89,7 @@ describe("postTweetWithMedia", () => {
     fs.unlinkSync.mockReturnValue(undefined);
     path.resolve.mockReturnValue("temp-image.jpg");
 
-    await postTweetWithMedia(config, text, mediaUrl);
+    await client.postTweetWithMedia(text, mediaUrl);
 
     expect(fs.writeFileSync).toHaveBeenCalled();
     expect(fs.readFileSync).toHaveBeenCalled();
@@ -100,15 +98,9 @@ describe("postTweetWithMedia", () => {
   });
 
   it("should handle missing configuration error", async () => {
-    try {
-      await postTweetWithMedia(
-        null,
-        "Hello, world!",
-        "http://example.com/image.mp4"
-      );
-    } catch (error) {
-      expect(error.message).toBe("Configuration options not set.");
-    }
+    expect(() => new XApiClient(null)).toThrow(
+      "Configuration options not set."
+    );
   });
 
   it("should handle media upload error", async () => {
@@ -122,51 +114,15 @@ describe("postTweetWithMedia", () => {
           arrayBuffer: () => Promise.resolve(new ArrayBuffer(10)),
         });
       }
-      if (url.startsWith("https://upload.twitter.com/1.1/media/upload.json")) {
-        if (options.headers["Content-Type"].startsWith("multipart/form-data")) {
-          // Handle the APPEND command
-          const parts = options.body.toString().split("\r\n");
-          const commandPart = parts.find((part, i) => {
-            return i > 0 && parts[i - 2]?.includes('name="command"');
+      if (url.includes("upload.json") && options.method === "POST") {
+        const params = new URLSearchParams(options.body.toString());
+        if (params.get("command") === "INIT") {
+          return Promise.resolve({
+            ok: false,
+            statusText: "Invalid request",
           });
-          const command = commandPart;
-          if (command === "APPEND") {
-            return Promise.resolve({ ok: true });
-          }
-        } else {
-          // Handle INIT, FINALIZE, and STATUS commands
-          const params = new URLSearchParams(options.body.toString());
-          const command = params.get("command");
-          if (command === "INIT") {
-            console.log("INIT");
-            return Promise.resolve({
-              ok: false,
-              statusText: "Invalid request",
-            });
-          }
-          if (command === "FINALIZE") {
-            return Promise.resolve({ ok: true });
-          }
-          if (url.includes("STATUS")) {
-            return Promise.resolve({
-              ok: true,
-              json: () =>
-                Promise.resolve({
-                  processing_info: { state: "succeeded" },
-                }),
-            });
-          }
         }
         return Promise.resolve({ ok: true });
-      }
-      if (
-        url === "https://api.twitter.com/2/tweets" &&
-        options.method === "POST"
-      ) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ data: { id: mediaId, text } }),
-        });
       }
       return Promise.reject(new Error("Unknown URL"));
     });
@@ -179,7 +135,7 @@ describe("postTweetWithMedia", () => {
     path.resolve.mockReturnValue("temp-image.jpg");
 
     try {
-      await postTweetWithMedia(config, text, mediaUrl);
+      await client.postTweetWithMedia(text, mediaUrl);
     } catch (error) {
       expect(error.message).toContain("Error initializing media upload");
     }

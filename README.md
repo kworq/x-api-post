@@ -27,21 +27,39 @@ Before using this module, you need to set up the configuration with your Twitter
 - `X_API_ACCESS_TOKEN`
 - `X_API_ACCESS_TOKEN_SECRET`
 
-## Functions
+## Class
 
-### `postTweetWithMedia(config, text, mediaUrls)`
+### `XApiClient`
+
+A class to handle posting tweets with media to Twitter.
+
+#### Constructor
+
+Creates an instance of `XApiClient`.
+
+```javascript
+new XApiClient(config)
+```
+
+##### Parameters:
+
+- `config`: Configuration object containing Twitter API credentials.
+
+#### Methods
+
+##### `postTweetWithMedia(text, mediaUrls)`
 
 Posts a tweet with the specified text and media.
 
-#### Parameters:
-- `config`: Configuration object containing Twitter API credentials.
+###### Parameters:
+
 - `text`: The text of the tweet.
 - `mediaUrls`: An array of media URLs to upload and attach to the tweet.
 
 ## Usage Example
 
 ```javascript
-import { postTweetWithMedia } from 'x-api-post';
+import XApiClient from './XApiClient';
 
 const config = {
   X_API_KEY: 'your_api_key',
@@ -53,7 +71,9 @@ const config = {
 const text = "Hello, world!";
 const mediaUrls = ["https://example.com/image.jpg"];
 
-postTweetWithMedia(config, text, mediaUrls)
+const client = new XApiClient(config);
+
+client.postTweetWithMedia(text, mediaUrls)
   .then(() => console.log("Tweet posted successfully!"))
   .catch((error) => console.error("Error posting tweet:", error));
 ```
