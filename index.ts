@@ -2,13 +2,31 @@ import OAuth from "oauth";
 import fs from "fs";
 import path from "path";
 
+import {
+  MediaUploadInitResponse,
+  MediaUploadAppendResponse,
+  MediaUploadFinalizeResponse,
+  MediaUploadStatusResponse,
+} from "./index.d";
+
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
 const requestTokenUrl = "https://api.twitter.com/oauth/request_token";
 const accessTokenUrl = "https://api.twitter.com/oauth/access_token";
 
+interface Config {
+  X_API_KEY: string;
+  X_API_SECRET: string;
+  X_API_ACCESS_TOKEN: string;
+  X_API_ACCESS_TOKEN_SECRET: string;
+}
+
 export default class XApiClient {
-  constructor(config) {
+  #X_API_ACCESS_TOKEN: string;
+  #X_API_ACCESS_TOKEN_SECRET: string;
+  #oauth: OAuth.OAuth;
+
+  constructor(config: Config) {
     if (
       !config?.X_API_KEY ||
       !config?.X_API_SECRET ||
@@ -17,8 +35,8 @@ export default class XApiClient {
     ) {
       throw new Error("Configuration options not set.");
     }
-    this.X_API_ACCESS_TOKEN = config.X_API_ACCESS_TOKEN;
-    this.X_API_ACCESS_TOKEN_SECRET = config.X_API_ACCESS_TOKEN_SECRET;
+    this.#X_API_ACCESS_TOKEN = config.X_API_ACCESS_TOKEN;
+    this.#X_API_ACCESS_TOKEN_SECRET = config.X_API_ACCESS_TOKEN_SECRET;
     this.#oauth = new OAuth.OAuth(
       requestTokenUrl,
       accessTokenUrl,
@@ -30,26 +48,31 @@ export default class XApiClient {
     );
   }
 
-  #oauth;
-
-  #getAuthHeader(endpoint, method, params) {
+  #getAuthHeader(
+    endpoint: string,
+    method: string,
+    params?: Record<string, any>
+  ): string {
     return this.#oauth.authHeader(
       endpoint + (params ? "?" + new URLSearchParams(params).toString() : ""),
-      this.X_API_ACCESS_TOKEN,
-      this.X_API_ACCESS_TOKEN_SECRET,
+      this.#X_API_ACCESS_TOKEN,
+      this.#X_API_ACCESS_TOKEN_SECRET,
       method
     );
   }
 
-  async postTweetWithMedia(text, mediaUrls) {
+  async postTweetWithMedia(
+    text: string,
+    mediaUrls?: string | string[]
+  ): Promise<void> {
     const _mediaUrls =
       typeof mediaUrls !== "string"
         ? mediaUrls?.length
           ? mediaUrls
           : undefined
         : [mediaUrls];
-    const mediaIds = _mediaUrls ? [] : undefined;
-    if (mediaIds) {
+    const mediaIds = _mediaUrls ? ([] as string[]) : undefined;
+    if (mediaIds && _mediaUrls) {
       for await (const mediaUrl of _mediaUrls) {
         const mediaId = await this.#uploadMedia(mediaUrl);
         mediaId && mediaIds.push(mediaId);
@@ -58,13 +81,17 @@ export default class XApiClient {
     await this.#postTweet(text, mediaIds);
   }
 
-  async #downloadImage(url, dest) {
+  async #downloadImage(url: string, dest: string): Promise<void> {
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
     fs.writeFileSync(dest, Buffer.from(buffer));
   }
 
-  async #uploadMediaInit(mediaSize, mediaType, mediaCategory) {
+  async #uploadMediaInit(
+    mediaSize: number,
+    mediaType: string,
+    mediaCategory: string
+  ): Promise<string | undefined> {
     const params = {
       command: "INIT",
       total_bytes: mediaSize,
@@ -81,7 +108,7 @@ export default class XApiClient {
           Authorization,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams(params),
+        body: new URLSearchParams(params as any),
       });
 
       if (!response.ok) {
@@ -89,7 +116,7 @@ export default class XApiClient {
           "Error initializing media upload: " + response.statusText
         );
       }
-      const body = await response.json();
+      const body = (await response.json()) as MediaUploadInitResponse;
       if (body && body.media_id_string) {
         console.log(body);
         return body.media_id_string;
@@ -101,7 +128,11 @@ export default class XApiClient {
     }
   }
 
-  async #uploadMediaAppend(mediaId, mediaData, segmentIndex) {
+  async #uploadMediaAppend(
+    mediaId: string,
+    mediaData: Buffer,
+    segmentIndex: number
+  ): Promise<void> {
     const boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
     const separator = `--${boundary}`;
     const crlf = "\r\n";
@@ -143,14 +174,14 @@ export default class XApiClient {
       Buffer.from(footer),
     ]);
 
-    const Authorization = this.#getAuthHeader?.(mediaEndpointUrl, "POST");
+    const Authorization = this.#getAuthHeader(mediaEndpointUrl, "POST");
 
     const response = await fetch(mediaEndpointUrl, {
       method: "POST",
       headers: {
         Authorization,
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
-        "Content-Length": multipartBody.length,
+        "Content-Length": multipartBody.length.toString(),
       },
       body: multipartBody,
     });
@@ -160,17 +191,13 @@ export default class XApiClient {
     }
   }
 
-  async #uploadMediaFinalize(mediaId) {
+  async #uploadMediaFinalize(mediaId: string): Promise<void> {
     const params = {
       command: "FINALIZE",
       media_id: mediaId,
     };
 
-    const Authorization = this.#getAuthHeader?.(
-      mediaEndpointUrl,
-      "POST",
-      params
-    );
+    const Authorization = this.#getAuthHeader(mediaEndpointUrl, "POST", params);
 
     try {
       const response = await fetch(mediaEndpointUrl, {
@@ -179,7 +206,7 @@ export default class XApiClient {
           Authorization,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams(params),
+        body: new URLSearchParams(params as any),
       });
 
       if (!response.ok) {
@@ -192,7 +219,7 @@ export default class XApiClient {
     }
   }
 
-  async #uploadMediaStatus(mediaId) {
+  async #uploadMediaStatus(mediaId: string): Promise<string | undefined> {
     const params = {
       command: "STATUS",
       media_id: mediaId,
@@ -210,7 +237,7 @@ export default class XApiClient {
     while (state !== "succeeded" && !errorCaught) {
       try {
         const response = await fetch(
-          mediaEndpointUrl + "?command=STATUS&media_id=" + mediaId,
+          `${mediaEndpointUrl}?command=STATUS&media_id=${mediaId}`,
           {
             method: "GET",
             headers: {
@@ -219,7 +246,7 @@ export default class XApiClient {
             },
           }
         );
-        const body = await response.json();
+        const body = (await response.json()) as MediaUploadStatusResponse;
         if (body && body.processing_info) {
           const processingInfo = body.processing_info;
           state = processingInfo.state;
@@ -251,23 +278,23 @@ export default class XApiClient {
     }
   }
 
-  async #uploadMedia(imageUrl) {
+  async #uploadMedia(imageUrl: string): Promise<string | undefined> {
     const pathArr = imageUrl.split(".");
     const ext = pathArr[pathArr.length - 1].toLowerCase();
     let mediaCategory = "tweet_image";
     let mediaType = "image/jpeg";
     let requiresStatusCheck = true;
 
-    if (ext == "mov" || ext == "mp4") {
+    if (ext === "mov" || ext === "mp4") {
       mediaCategory = "tweet_video";
       mediaType = "video/mp4";
-    } else if (ext == "gif") {
+    } else if (ext === "gif") {
       mediaCategory = "tweet_gif";
       mediaType = "image/gif";
-    } else if (ext == "jpg" || ext == "png") {
+    } else if (ext === "jpg" || ext === "png") {
       requiresStatusCheck = false;
       mediaCategory = "tweet_image";
-      mediaType = ext == "png" ? "image/png" : "image/jpeg";
+      mediaType = ext === "png" ? "image/png" : "image/jpeg";
     }
 
     const tempImagePath = path.resolve(`temp-image.${ext}`);
@@ -277,11 +304,11 @@ export default class XApiClient {
 
     console.log("mediaType, mediaCategory", mediaType, mediaCategory);
     // Initialize upload
-    const mediaId = await this.#uploadMediaInit(
+    const mediaId = (await this.#uploadMediaInit(
       mediaSize,
       mediaType,
       mediaCategory
-    );
+    )) as string;
 
     // Upload chunks
     const chunkSize = 5 * 1024 * 1024; // 5MB per chunk
@@ -304,13 +331,13 @@ export default class XApiClient {
     return mediaId;
   }
 
-  async #postTweet(text, mediaIds) {
+  async #postTweet(text: string, mediaIds?: string[]): Promise<void> {
     const data = {
       text: text,
       ...(mediaIds?.length ? { media: { media_ids: mediaIds } } : {}),
     };
 
-    const Authorization = this.#getAuthHeader?.(tweetEndpointUrl, "POST");
+    const Authorization = this.#getAuthHeader(tweetEndpointUrl, "POST");
 
     try {
       const response = await fetch(tweetEndpointUrl, {

@@ -58,8 +58,8 @@ Posts a tweet with the specified text and media.
 
 ## Usage Example
 
-```javascript
-import XApiClient from './XApiClient';
+```typescript
+import XApiClient from 'XApiClient';
 
 const config = {
   X_API_KEY: 'your_api_key',
