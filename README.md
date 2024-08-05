@@ -6,10 +6,16 @@ This Node.js module provides functionality to post tweets with media (images, vi
 
 ## Requirements
 
-- Node.js v18.0.0 or higher (native `fetch` support)
-- Twitter Developer Account with API keys
+- Node.js v20.0.0 or higher
+- X / Twitter Developer Account with API keys
 
-## Installation
+## Installation from GitHub Packages
+
+```bash
+npm install github:@kworq/x-api-post
+```
+
+## Working with source
 
 1. Clone the repository or copy the code into your project directory.
 2. Install the required dependencies using npm:
@@ -58,8 +64,8 @@ Posts a tweet with the specified text and media.
 
 ## Usage Example
 
-```typescript
-import XApiClient from 'XApiClient';
+```javascript
+import XApiClient from '@kworq/x-api-post';
 
 const config = {
   X_API_KEY: 'your_api_key',
@@ -69,18 +75,13 @@ const config = {
 };
 
 const text = "Hello, world!";
-const mediaUrls = ["https://example.com/image.jpg"];
+const mediaUrls = ["https://www.w3schools.com/html/mov_bbb.mp4"];
 
 const client = new XApiClient(config);
 
 client.postTweetWithMedia(text, mediaUrls)
   .then(() => console.log("Tweet posted successfully!"))
   .catch((error) => console.error("Error posting tweet:", error));
-```
-
-## Run
-```bash
-node --import ./esm-loader.mjs index.ts
 ```
 
 ## Notes
