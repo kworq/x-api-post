@@ -24,6 +24,12 @@ npm install github:@kworq/x-api-post
 npm install
 ```
 
+## Run source
+
+```bash
+node --import ./esm-loader.mjs app.ts
+```
+
 ## Configuration
 
 Before using this module, you need to set up the configuration with your Twitter API credentials. The configuration object should have the following properties:
@@ -80,7 +86,7 @@ const mediaUrls = ["https://www.w3schools.com/html/mov_bbb.mp4"];
 const client = new XApiClient(config);
 
 client.postTweetWithMedia(text, mediaUrls)
-  .then(() => console.log("Tweet posted successfully!"))
+  .then((response) => console.log(response))
   .catch((error) => console.error("Error posting tweet:", error));
 ```
 

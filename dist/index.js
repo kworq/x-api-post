@@ -36,7 +36,7 @@ export default class XApiClient {
                 mediaId && mediaIds.push(mediaId);
             }
         }
-        await this.#postTweet(text, mediaIds);
+        return await this.#postTweet(text, mediaIds);
     }
     async #uploadMedia(imageUrl) {
         const pathArr = imageUrl.split(".");
@@ -254,9 +254,10 @@ export default class XApiClient {
                 },
                 body: JSON.stringify(data),
             });
-            const body = await response.json();
+            const body = (await response.json());
             if (body) {
-                console.log("Tweet posted:", body);
+                console.log("Tweet posted successfully!");
+                return body;
             }
             else {
                 console.error("Error posting tweet:", response.statusText);
@@ -264,7 +265,16 @@ export default class XApiClient {
         }
         catch (error) {
             console.error("Request failed:", error);
+            return {
+                errors: [
+                    {
+                        detail: error.message,
+                        title: "Request failed",
+                    },
+                ],
+            };
         }
+        return { errors: [{ detail: "Unknown error", title: "Unknown error" }] };
     }
 }
 //# sourceMappingURL=index.js.map

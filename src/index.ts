@@ -2,7 +2,7 @@ import OAuth from "oauth";
 import fs from "fs";
 import path from "path";
 
-import { MediaUploadInitResponse, MediaUploadStatusResponse } from "../x-api";
+import { MediaUploadInitResponse, MediaUploadStatusResponse } from "./index.d";
 
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
@@ -14,6 +14,22 @@ interface Config {
   X_API_SECRET: string;
   X_API_ACCESS_TOKEN: string;
   X_API_ACCESS_TOKEN_SECRET: string;
+}
+
+interface TweetResponse {
+  data?: {
+    id: string;
+    text: string;
+    edit_history_tweet_ids?: string[];
+  };
+  errors?: Array<{
+    detail: string;
+    title: string;
+    resource_type?: string;
+    parameter?: string;
+    resource_id?: string;
+    type?: string;
+  }>;
 }
 
 export default class XApiClient {
@@ -59,7 +75,7 @@ export default class XApiClient {
   async postTweetWithMedia(
     text: string,
     mediaUrls?: string | string[]
-  ): Promise<void> {
+  ): Promise<TweetResponse> {
     const _mediaUrls =
       typeof mediaUrls !== "string"
         ? mediaUrls?.length
@@ -73,7 +89,7 @@ export default class XApiClient {
         mediaId && mediaIds.push(mediaId);
       }
     }
-    await this.#postTweet(text, mediaIds);
+    return await this.#postTweet(text, mediaIds);
   }
 
   async #uploadMedia(imageUrl: string): Promise<string | undefined> {
@@ -327,7 +343,7 @@ export default class XApiClient {
     }
   }
 
-  async #postTweet(text: string, mediaIds?: string[]): Promise<void> {
+  async #postTweet(text: string, mediaIds?: string[]): Promise<TweetResponse> {
     const data = {
       text: text,
       ...(mediaIds?.length ? { media: { media_ids: mediaIds } } : {}),
@@ -344,14 +360,24 @@ export default class XApiClient {
         },
         body: JSON.stringify(data),
       });
-      const body = await response.json();
+      const body = (await response.json()) as TweetResponse;
       if (body) {
-        console.log("Tweet posted:", body);
+        console.log("Tweet posted successfully!");
+        return body;
       } else {
         console.error("Error posting tweet:", response.statusText);
       }
     } catch (error) {
       console.error("Request failed:", error);
+      return {
+        errors: [
+          {
+            detail: (error as { message: string }).message,
+            title: "Request failed",
+          },
+        ],
+      };
     }
+    return { errors: [{ detail: "Unknown error", title: "Unknown error" }] };
   }
 }
