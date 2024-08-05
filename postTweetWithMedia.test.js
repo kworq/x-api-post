@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import XApiClient from "./index"; // Replace with your actual class import
+import XApiClient from "./src/index"; // Replace with your actual class import
 import fs from "fs";
 import path from "path";
 
