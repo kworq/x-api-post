@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@kworq/x-api-post",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A Node.js module for posting tweets with media (images, videos, GIFs) to X (formerly Twitter) using the API. It handles authentication, media uploading, and posting tweets.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
