@@ -2,11 +2,7 @@
   "type": "module",
   "name": "@kworq/x-api-post",
   "version": "0.1.1",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kworq/x-api-post.git"
-  },
-  "description": "",
+  "description": "A Node.js module for posting tweets with media (images, videos, GIFs) to X (formerly Twitter) using the API. It handles authentication, media uploading, and posting tweets.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -20,8 +16,27 @@
     "clean": "rimraf dist",
     "build": "npm run clean && tsc"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kworq/x-api-post.git"
+  },
+  "keywords": [
+    "X",
+    "Twitter",
+    "X-api",
+    "Twitter-api",
+    "media-upload",
+    "tweet-with-media",
+    "nodejs",
+    "X-client",
+    "Twitter-client",
+    "X-sdk",
+    "Twitter-sdk",
+    "api",
+    "post-tweet"
+  ],
   "author": "Guy Peires",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@types/oauth": "^0.9.5",
     "oauth": "^0.10.0"
