@@ -9,10 +9,10 @@ This Node.js module provides functionality to post tweets with media (images, vi
 - Node.js v20.0.0 or higher
 - X / Twitter Developer Account with API keys
 
-## Installation from GitHub Packages
+## Installation
 
 ```bash
-npm install github:@kworq/x-api-post
+npm install @kworq/x-api-post
 ```
 
 ## Working with source
