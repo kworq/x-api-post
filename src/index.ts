@@ -114,11 +114,14 @@ export default class XApiClient {
     const mediaSize = mediaData.byteLength;
 
     // Initialize upload
-    const mediaId = (await this.#uploadMediaInit(
+    const mediaId = await this.#uploadMediaInit(
       mediaSize,
       mediaType,
       mediaCategory
-    )) as string;
+    );
+    if (!mediaId) {
+      throw new Error("Error initializing media upload.");
+    }
 
     // Upload chunks
     const chunkSize = 5 * 1024 * 1024; // 5MB per chunk
