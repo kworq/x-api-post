@@ -110,8 +110,7 @@ export default class XApiClient {
       mediaType = ext === "png" ? "image/png" : "image/jpeg";
     }
 
-    const tempImagePath = path.resolve(`temp-image.${ext}`);
-    const mediaData = await this.#downloadImage(imageUrl, tempImagePath);
+    const mediaData = await this.#downloadImage(imageUrl);
     const mediaSize = mediaData.byteLength;
 
     // Initialize upload
@@ -140,7 +139,7 @@ export default class XApiClient {
     return mediaId;
   }
 
-  async #downloadImage(url: string, dest: string): Promise<Buffer> {
+  async #downloadImage(url: string): Promise<Buffer> {
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
     console.log("Remote image downloaded.");
