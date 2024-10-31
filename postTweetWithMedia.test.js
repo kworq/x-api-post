@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import XApiClient from "./src/index"; // Replace with your actual class import
-import fs from "fs";
-import path from "path";
-
-vi.mock("fs");
-vi.mock("path");
+import XApiClient from "./src/index";
 
 describe("XApiClient", () => {
   const config = {
@@ -82,19 +77,9 @@ describe("XApiClient", () => {
       return Promise.reject(new Error("Unknown URL"));
     });
 
-    // Mock fs and path methods
-    fs.writeFileSync.mockReturnValue(undefined);
-    fs.readFileSync.mockReturnValue(Buffer.from(new ArrayBuffer(10)));
-    fs.statSync.mockReturnValue({ size: 10 });
-    fs.unlinkSync.mockReturnValue(undefined);
-    path.resolve.mockReturnValue("temp-image.jpg");
-
-    await client.postTweetWithMedia(text, mediaUrl);
-
-    expect(fs.writeFileSync).toHaveBeenCalled();
-    expect(fs.readFileSync).toHaveBeenCalled();
-    expect(fs.statSync).toHaveBeenCalled();
-    expect(fs.unlinkSync).toHaveBeenCalled();
+    const result = await client.postTweetWithMedia(text, mediaUrl);
+    expect(result.data.id).toBe(mediaId);
+    expect(result.data.text).toBe(text);
   });
 
   it("should handle missing configuration error", async () => {
@@ -126,13 +111,6 @@ describe("XApiClient", () => {
       }
       return Promise.reject(new Error("Unknown URL"));
     });
-
-    // Mock fs and path methods
-    fs.writeFileSync.mockReturnValue(undefined);
-    fs.readFileSync.mockReturnValue(Buffer.from(new ArrayBuffer(10)));
-    fs.statSync.mockReturnValue({ size: 10 });
-    fs.unlinkSync.mockReturnValue(undefined);
-    path.resolve.mockReturnValue("temp-image.jpg");
 
     try {
       await client.postTweetWithMedia(text, mediaUrl);
