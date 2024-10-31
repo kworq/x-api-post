@@ -1,6 +1,4 @@
 import OAuth from "oauth";
-import fs from "fs";
-import path from "path";
 const mediaEndpointUrl = "https://upload.twitter.com/1.1/media/upload.json";
 const tweetEndpointUrl = "https://api.twitter.com/2/tweets";
 const requestTokenUrl = "https://api.twitter.com/oauth/request_token";
@@ -57,12 +55,13 @@ export default class XApiClient {
             mediaCategory = "tweet_image";
             mediaType = ext === "png" ? "image/png" : "image/jpeg";
         }
-        const tempImagePath = path.resolve(`temp-image.${ext}`);
-        await this.#downloadImage(imageUrl, tempImagePath);
-        const mediaData = fs.readFileSync(tempImagePath);
-        const mediaSize = fs.statSync(tempImagePath).size;
+        const mediaData = await this.#downloadImage(imageUrl);
+        const mediaSize = mediaData.byteLength;
         // Initialize upload
-        const mediaId = (await this.#uploadMediaInit(mediaSize, mediaType, mediaCategory));
+        const mediaId = await this.#uploadMediaInit(mediaSize, mediaType, mediaCategory);
+        if (!mediaId) {
+            throw new Error("Error initializing media upload.");
+        }
         // Upload chunks
         const chunkSize = 5 * 1024 * 1024; // 5MB per chunk
         for (let i = 0; i < mediaSize; i += chunkSize) {
@@ -75,17 +74,14 @@ export default class XApiClient {
         if (requiresStatusCheck) {
             await this.#uploadMediaStatus(mediaId);
         }
-        // Remove the temporary image file
-        fs.unlinkSync(tempImagePath);
-        console.log("Temporary image file removed.");
         console.log("Media uploaded successfully.");
         return mediaId;
     }
-    async #downloadImage(url, dest) {
+    async #downloadImage(url) {
         const response = await fetch(url);
         const buffer = await response.arrayBuffer();
-        fs.writeFileSync(dest, Buffer.from(buffer));
-        console.log("Remote image downloaded and temporarily saved to disk.");
+        console.log("Remote image downloaded.");
+        return Buffer.from(buffer);
     }
     async #uploadMediaInit(mediaSize, mediaType, mediaCategory) {
         const params = {
