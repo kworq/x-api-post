@@ -1,5 +1,4 @@
 import OAuth from "oauth";
-import fs from "fs";
 import path from "path";
 
 import { MediaUploadInitResponse, MediaUploadStatusResponse } from "./index.d";
@@ -111,17 +110,18 @@ export default class XApiClient {
       mediaType = ext === "png" ? "image/png" : "image/jpeg";
     }
 
-    const tempImagePath = path.resolve(`temp-image.${ext}`);
-    await this.#downloadImage(imageUrl, tempImagePath);
-    const mediaData = fs.readFileSync(tempImagePath);
-    const mediaSize = fs.statSync(tempImagePath).size;
+    const mediaData = await this.#downloadImage(imageUrl);
+    const mediaSize = mediaData.byteLength;
 
     // Initialize upload
-    const mediaId = (await this.#uploadMediaInit(
+    const mediaId = await this.#uploadMediaInit(
       mediaSize,
       mediaType,
       mediaCategory
-    )) as string;
+    );
+    if (!mediaId) {
+      throw new Error("Error initializing media upload.");
+    }
 
     // Upload chunks
     const chunkSize = 5 * 1024 * 1024; // 5MB per chunk
@@ -138,18 +138,15 @@ export default class XApiClient {
       await this.#uploadMediaStatus(mediaId);
     }
 
-    // Remove the temporary image file
-    fs.unlinkSync(tempImagePath);
-    console.log("Temporary image file removed.");
     console.log("Media uploaded successfully.");
     return mediaId;
   }
 
-  async #downloadImage(url: string, dest: string): Promise<void> {
+  async #downloadImage(url: string): Promise<Buffer> {
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
-    fs.writeFileSync(dest, Buffer.from(buffer));
-    console.log("Remote image downloaded and temporarily saved to disk.");
+    console.log("Remote image downloaded.");
+    return Buffer.from(buffer);
   }
 
   async #uploadMediaInit(
