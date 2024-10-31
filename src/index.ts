@@ -1,5 +1,4 @@
 import OAuth from "oauth";
-import path from "path";
 
 import { MediaUploadInitResponse, MediaUploadStatusResponse } from "./index.d";
 
